@@ -8,7 +8,7 @@
 ```cmd /c "cd /d Path to folder && python -m http.server 8000 --cgi"```
 ## 5. After launching cmd, open OBS, create a browser and insert the URL address http://localhost:8000/
 ## 6. You can change background 
-![2](https://i.pinimg.com/736x/2c/06/32/2c0632ef240796fa2a5adbc633c38326.jpg)
+![2](https://i.pinimg.com/736x/0e/dd/da/0edddafbd2ee8e4df0b96891d8bb9526.jpg)
 
 ### There is a nuance: each time you start the flow, you need to insert the link again. Make sure that the request appears in cmd. Then start the flow.
 ### An example of what it looks like
