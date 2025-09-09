@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>FaceIt Overlay</title>
+    <script src="https://cdn.jsdelivr.net/npm/brython@3.12.0/brython.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/brython@3.12.0/brython_stdlib.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #222;
+			color: white;
+            padding: 20px;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+	        position: relative;
+        }
+		.overlay-container {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			opacity: 0; 
+			transform: scale(0.95);
+			transition: all 0.5s ease;
+			z-index: 1000;
+		}
+
+		/* Фоновая картинка https://zastavki.gas-kvas.com/uploads/posts/2024-09/zastavki-gas-kvas-com-o0f5-p-zastavki-saga-o-vinlande-19.jpg*/
+		.overlay-container::before {
+			content: "";
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-image: url(https://i.pinimg.com/originals/70/b0/40/70b040cdc3356cfb8c15dfad0650a24e.gif);
+			background-size: 100% 100%;
+			background-position: center;
+			background-repeat: no-repeat;
+			z-index: -2;
+			filter: blur(0px);
+			transition: filter 0.5s ease;
+		}
+		.overlay-container.visible::before {
+			filter: blur(5px);
+		}
+		
+		.overlay-container::after {
+			content: "";
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.7);
+			z-index: -1;
+			background: radial-gradient(ellipse at center, 
+             rgba(0,0,0,0.6) 0%, 
+             rgba(0,0,0,0.9) 100%);
+		}
+
+		
+		.overlay-container.visible {
+			opacity: 1;
+			transform: scale(1);
+			
+		}
+
+
+		
+        #overlay {
+            width: 400px;
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
+			z-index: 1000;
+			position: relative;
+           
+        }
+        #overlay.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .player-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        #player-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid #4CAF50;
+            margin-right: 15px;
+            object-fit: cover;
+        }
+        #level-icon {
+            width: 40px;
+            height: 40px;
+            margin-left: 8px;
+			padding-bottom: 30px;
+        }
+        #player-nickname {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        #player-elo {
+            font-size: 18px;
+            color: #4CAF50;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+			width: 100%;
+			text-align: center; 
+        }
+        .stat-box {
+            background: rgba(40, 40, 40, 0.7);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #4CAF50;
+        }
+        .stat-label {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 5px;
+			width: 100%; 
+			text-align: center; 
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #last-update {
+            color: #666;
+            font-size: 11px;
+            text-align: right;
+            margin-top: 15px;
+        }
+        #result-message {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #4CAF50;
+            opacity: 0;
+            transition: opacity 0.3s;
+            text-transform: uppercase;
+			z-index: 1001;
+			
+        }
+        #result-message.visible {
+            opacity: 1;
+        }
+        #result-message.win {
+            color: #4CAF50;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.7);
+        }
+        #result-message.lose {
+            color: #F44336;
+            text-shadow: 0 0 10px rgba(244, 67, 54, 0.7);
+        }
+        .elo-change {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .counting {
+            color: #4CAF50 !important;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+            transition: color 0.3s ease;
+        }
+        @keyframes pulse-glow {
+            0% { text-shadow: 0 0 8px rgba(76, 175, 80, 0.6); }
+            50% { text-shadow: 0 0 15px rgba(76, 175, 80, 0.9); }
+            100% { text-shadow: 0 0 8px rgba(76, 175, 80, 0.6); }
+        } 
+        .counting.win {
+            animation: pulse-glow 1s infinite;
+            color: #4CAF50 !important;
+        }
+        .counting.lose {
+            animation: pulse-glow 1s infinite;
+            color: #F44336 !important;
+        }
+		.last-matches {
+			margin-top: 15px;
+			background: rgba(40, 40, 40, 0.7);
+			padding: 12px;
+			border-radius: 6px;
+			border-left: 3px solid #4CAF50;
+			text-align: center; 
+			display: flex;
+			flex-direction: column;
+			
+		}
+
+		.matches-container {
+			display: flex;
+			gap: 10px;
+			justify-content: center; 
+			width: 100%; 
+		}
+
+		.match-result {
+			width: 30px;
+			height: 30px;
+			border-radius: 50%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			font-weight: bold;
+			font-size: 14px;
+		}
+
+		.match-result.win {
+			background: #4CAF50;
+			color: white;
+		}
+
+		.match-result.lose {
+			background: #F44336;
+			color: white;
+		}
+    </style>
+</head>
+<body onload="brython()">
+    
+	<div class="overlay-container">
+    <div id="overlay">
+        <div id="result-message"></div>
+        <div class="player-header">
+            <img id="player-avatar" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNDAiIHk9IjQwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkFWQVRBUjwvdGV4dD48L3N2Zz4=" alt="Avatar">
+            <div>
+                <div id="player-nickname">Loading...</div>
+                <div id="player-elo">ELO: -</div>
+            </div>
+            <img id="level-icon" src="" alt="Level">
+        </div>
+        <div class="last-matches">
+		<div class="stat-label">Last 5 matches:</div>
+		<div class="matches-container" id="last-matches"></div>
+		</div>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-label">K/D Ratio</div>
+                <div class="stat-value" id="stat-kd">0.00</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Headshots %</div>
+                <div class="stat-value" id="stat-hs">0%</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">ADR</div>
+                <div class="stat-value" id="stat-kills">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value" id="stat-winrate">0%</div>
+            </div>
+        </div>
+        
+        <div id="last-update">Last update: -</div>
+    </div>
+
+<script type="text/python">
+from browser import document, ajax, timer, window
+from datetime import datetime
+import json
+
+class FaceItOverlay:
+    def __init__(self):
+        self.API_KEY = "YOURAPIKEY"
+        self.NICKNAME = "YOURNICKNAME"
+        self.UPDATE_INTERVAL = 20
+        self.last_elo = None
+        self.current_level = None
+        self.setup_event_handlers()
+        self.run_updater()
+        
+       
+      
+		
+   
+	   
+    def get_last_matches(self, player_data):
+        
+        try:
+            if not player_data or "player_id" not in player_data:
+                return ["-", "-", "-", "-", "-"]
+            
+            player_id = player_data["player_id"]
+            req = ajax.ajax()
+            url = f"https://open.faceit.com/data/v4/players/{player_id}/history?game=cs2&limit=5"
+            req.open("GET", url, False)
+            req.set_header("Authorization", f"Bearer {self.API_KEY}")
+            req.send()
+        
+            if req.status != 200:
+                return ["-", "-", "-", "-", "-"]
+            
+            history = json.loads(req.text)
+            matches = []
+        
+            if "items" not in history:
+                return ["-", "-", "-", "-", "-"]
+            
+            for item in history["items"]:
+                   # Новый способ определения результата - через поле 'results'
+                if "results" in item and "winner" in item["results"]:
+                    winner_faction = item["results"]["winner"]
+                    player_team = None
+                
+                      # Определяем в какой команде был игрок
+                    for faction in ["faction1", "faction2"]:
+                        if faction in item["teams"]:
+                            for player in item["teams"][faction]["players"]:
+                                if player["player_id"] == player_id:
+                                    player_team = faction
+                                    break
+                
+                    if player_team:
+                        result = "W" if player_team == winner_faction else "L"
+                        matches.append(result)
+                    else:
+                        matches.append("-")
+                else:
+                    matches.append("-")
+        
+                # Заполняем недостающие
+            while len(matches) < 5:
+                matches.insert(0, "-")
+            
+            return matches[-5:]
+        
+        except Exception as e:
+            print(f"Ошибка при получении матчей: {e}")
+            return ["-", "-", "-", "-", "-"]
+			
+    def fetch_player_data(self):
+        def on_complete(req):
+            print(f"\n=== Ответ от API ===")
+            print(f"Статус: {req.status}")
+            print(f"Заголовки: {req.getAllResponseHeaders()}")
+            print(f"Тело ответа (первые 500 символов): {req.text[:500]}...\n")
+        
+            if req.status == 200:
+                try:
+                    data = json.loads(req.text)
+                    print("Успешно распарсенные данные:", data.keys())
+                
+                        # Проверка наличия player_id
+                    player_id = data.get("player_id")
+                    if not player_id:
+                        print("Ошибка: player_id не найден в ответе")
+                        return
+                
+                    print(f"\nPlayer ID: {player_id}")
+                    self.update_display(data)
+                    self.fetch_stats(player_id)
+                
+                except Exception as e:
+                    print(f"Ошибка парсинга JSON: {str(e)}")
+            elif req.status == 401:
+                print("Ошибка 401: Неавторизованный доступ. Проверьте API-ключ")
+            else:
+                print(f"Ошибка API: {req.status} - {req.text}")
+
+        url = f"https://open.faceit.com/data/v4/players?nickname={self.NICKNAME}"
+        print(f"\nОтправка запроса к: {url}")
+    
+        req = ajax.ajax()
+        req.open("GET", url, True)
+        req.set_header("Authorization", f"Bearer {self.API_KEY}")
+        req.bind("complete", on_complete)
+        req.send()
+		
+    
+
+    def update_level_icon(self, level):
+        """Обновить значок уровня"""
+        level_icon = document["level-icon"]
+        level_icon.src = f"icons/levels/{level}.png"
+        level_icon.style.display = "block"
+
+    def animate_elo_change(self, start_elo, end_elo, is_win, duration=1500):
+        """Анимация изменения ELO"""
+        elo_element = document["player-elo"]
+        start_time = None
+        total_change = end_elo - start_elo
+        
+        # Добавляем класс для анимации
+        elo_element.classList.add("counting", "win" if is_win else "lose")
+
+        def update(timestamp):
+            nonlocal start_time
+            if start_time is None:
+                start_time = timestamp
+                
+            progress = min((timestamp - start_time) / duration, 1)
+            current_elo = start_elo + int(total_change * progress)
+            elo_element.text = f"ELO: {current_elo}"
+            
+            if progress < 1:
+                window.requestAnimationFrame(update)
+            else:
+                # Завершение анимации
+                elo_element.classList.remove("counting", "win", "lose")
+                elo_element.text = f"ELO: {end_elo}"
+
+        window.requestAnimationFrame(update)
+
+    def show_result(self, text, is_win):
+        """Показать результат (WIN/LOSE)"""
+        result_msg = document["result-message"]
+        result_msg.text = text
+        result_msg.className = "visible win" if is_win else "visible lose"
+        #self.play_sound(is_win)
+        timer.set_timeout(lambda: result_msg.classList.remove("visible"), 3000)
+
+    def setup_event_handlers(self):
+        document["overlay"].bind("click", lambda e: self.hide_overlay())
+
+    def show_overlay(self):
+        document.select(".overlay-container")[0].classList.add("visible")
+
+    def hide_overlay(self):
+        document.select(".overlay-container")[0].classList.remove("visible")
+
+    def safe_get(self, data, keys, default="0"):
+        for key in keys:
+            if key in data:
+                data = data[key]
+            else:
+                return default
+        return data
+		
+    def update_last_matches(self, matches):
+        """Обновление отображения последних матчей"""
+        container = document["last-matches"]
+        container.html = ""
+        
+        for result in matches:
+            match_div = document.createElement("div")
+            if result == "W":
+                match_div.className = "match-result win"
+                match_div.text = "W"
+            elif result == "L":
+                match_div.className = "match-result lose"
+                match_div.text = "L"
+            else:
+                match_div.className = "match-result unknown"
+                match_div.text = "-"
+            container <= match_div
+
+    def update_display(self, data):
+		games_data = data.get("games", {}).get("cs2", {})
+		current_elo = int(games_data.get("faceit_elo", 0))
+		current_level = games_data.get("skill_level")
+		document["player-nickname"].text = self.NICKNAME
+    
+    # Обновляем уровень если он изменился
+		if current_level and current_level != self.current_level:
+			self.current_level = current_level
+			self.update_level_icon(current_level)
+    
+		if self.last_elo is not None and self.last_elo != current_elo:
+			change = current_elo - self.last_elo
+			is_win = change > 0
+			# Добавляем количество ELO в сообщение
+			result_text = f"{'WIN +' if is_win else 'LOSE '}{abs(change)}"
+			self.show_result(result_text, is_win)
+			self.animate_elo_change(self.last_elo, current_elo, is_win)
+			self.show_overlay()
+			timer.set_timeout(self.hide_overlay, 5000)
+    
+		self.last_elo = current_elo
+    
+		avatar_url = data.get("avatar") or data.get("images", {}).get("avatar")
+		if avatar_url:
+			document["player-avatar"].src = avatar_url
+    
+		document["last-update"].text = f"Updated: {datetime.now().strftime('%H:%M:%S')}"
+		last_matches = self.get_last_matches(data)  # Нужно реализовать получение данных
+		if last_matches:
+			self.update_last_matches(last_matches)
+		last_matches = self.get_last_matches(data)
+		print("Передаваемые матчи в update_last_matches:", last_matches)
+		self.update_last_matches(last_matches)	
+
+    def fetch_stats(self, player_id):
+        def on_complete(req):
+            if req.status == 200:
+                stats_data = json.loads(req.text)
+                lifetime = self.safe_get(stats_data, ["lifetime"], {})
+				
+                
+                kd = self.safe_get(lifetime, ["Average K/D Ratio"], "0")
+                hs = self.safe_get(lifetime, ["Average Headshots %"], "0")
+                kills = self.safe_get(lifetime, ["ADR"], "0")
+                winrate = self.safe_get(lifetime, ["Win Rate %"], "0")
+                
+                document["stat-kd"].text = f"{float(kd):.2f}"
+                document["stat-hs"].text = f"{hs}%"
+                document["stat-kills"].text = kills
+                document["stat-winrate"].text = f"{winrate}%"
+
+        req = ajax.ajax()
+        req.open("GET", f"https://open.faceit.com/data/v4/players/{player_id}/stats/cs2", True)
+        req.set_header("Authorization", f"Bearer {self.API_KEY}")
+        req.bind("complete", on_complete)
+        req.send()
+
+    def fetch_player_data(self):
+        def on_complete(req):
+            if req.status == 200:
+                data = json.loads(req.text)
+                self.update_display(data)
+                player_id = self.safe_get(data, ["player_id"])
+                if player_id != "0":
+                    self.fetch_stats(player_id)
+            elif req.status == 404:
+                document["player-nickname"].text = "Player not found"
+            else:
+                document["player-nickname"].text = f"Error: {req.status}"
+
+        req = ajax.ajax()
+        req.open("GET", f"https://open.faceit.com/data/v4/players?nickname={self.NICKNAME}", True)
+        req.set_header("Authorization", f"Bearer {self.API_KEY}")
+        req.bind("complete", on_complete)
+        req.send()
+
+    def run_updater(self):
+        self.fetch_player_data()
+        timer.set_timeout(self.run_updater, self.UPDATE_INTERVAL * 1000)
+
+
+FaceItOverlay()
+</script>
+</body>
+</html>
