@@ -1,6 +1,6 @@
 # Faceit overlay for OBS 
 ## Overlay is displayed when winning or losing
-#1. Download Pyhton 
+# 1. Download Pyhton 
 # 2. After download create Client side Faceit API key https://developers.faceit.com/
 ![1](https://i.pinimg.com/736x/ae/f8/d8/aef8d8ba80c641df5f8c8fc0a166fa69.jpg)
 # 3. Then open the index.html and paste the API key and your nickname.
